@@ -1,0 +1,66 @@
+=========================================
+TaskFlow - Database Schema Summary
+=========================================
+
+Database: PostgreSQL
+Current schema version includes the simplified User Tasks model.
+
+1. Table: users
+-----------------------------------------
+Stores user accounts with credentials and roles.
+
+Columns:
+  - id (UUID, Primary Key)
+      Default: gen_random_uuid()
+  - name (VARCHAR(100), Not Null)
+  - email (VARCHAR(100), Unique, Not Null)
+  - password (VARCHAR(255), Not Null)
+  - role (VARCHAR(20), Not Null)
+      Default: 'member'
+      Check Constraint: IN ('admin', 'member')
+  - created_at (TIMESTAMPTZ)
+      Default: NOW()
+  - updated_at (TIMESTAMPTZ)
+      Default: NOW()
+
+Triggers:
+  - set_users_updated_at
+      BEFORE UPDATE -> Calls update_updated_at()
+
+
+2. Table: user_tasks
+-----------------------------------------
+Stores individual tasks assigned directly to users.
+
+Columns:
+  - id (UUID, Primary Key)
+      Default: gen_random_uuid()
+  - title (VARCHAR(300), Not Null)
+  - description (TEXT)
+  - assigned_to (UUID, Foreign Key)
+      References: users(id) ON DELETE SET NULL
+  - status (VARCHAR(20), Not Null)
+      Default: 'pending'
+      Check Constraint: IN ('pending', 'completed')
+  - priority (VARCHAR(20), Not Null)
+      Default: 'medium'
+      Check Constraint: IN ('low', 'medium', 'high', 'urgent')
+  - due_date (DATE, Not Null)
+  - created_at (TIMESTAMPTZ)
+      Default: NOW()
+  - updated_at (TIMESTAMPTZ)
+      Default: NOW()
+
+Indexes:
+  - idx_user_tasks_assigned_to (on assigned_to)
+  - idx_user_tasks_status (on status)
+
+Triggers:
+  - set_user_tasks_updated_at
+      BEFORE UPDATE -> Calls update_updated_at()
+
+
+3. Shared Trigger Functions
+-----------------------------------------
+- update_updated_at()
+    Updates the updated_at column to NOW() for modified rows.
