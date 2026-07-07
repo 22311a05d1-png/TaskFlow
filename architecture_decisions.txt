@@ -1,0 +1,47 @@
+================================================================================
+TaskFlow - Architectural & Design Decisions
+================================================================================
+
+1. Migration to Standalone User Task Model (Database Simplification)
+--------------------------------------------------------------------------------
+- Decision: Replaced the complex multi-table structure (projects, project_members,
+  project-specific tasks) with a single flat table (`user_tasks`) for tracking tasks.
+- Rationale: The core objective was simplified to direct user task allocation. 
+  By removing project-level overhead, we minimized join complexity, reduced the 
+  likelihood of schema synchronization issues, and speeded up DB queries.
+- Impact: Removed legacy routes, updated schema.sql, and simplified the controllers.
+
+2. Simplified Status Lifecycle ('pending' vs. 'completed')
+--------------------------------------------------------------------------------
+- Decision: Constrained task status to binary states: 'pending' and 'completed'.
+- Rationale: A simple binary state prevents task ambiguity (e.g., tasks stuck in 
+  an unverified 'done' or 'in_progress' state). It streamlines the user interface 
+  to checkbox interactions.
+- Impact: Enforced via CHECK constraint in PostgreSQL. Legacy status counts in 
+  dashboard APIs return 'in_progress' as 0.
+
+3. Strict Mandatory Due Dates
+--------------------------------------------------------------------------------
+- Decision: Enforced non-null `due_date` columns for user tasks.
+- Rationale: Prevents the creation of open-ended, untracked tasks. It ensures that 
+  every task has a target deadline, which feeds cleanly into the "Urgent Tasks" 
+  and "Overdue" sorting algorithms.
+- Impact: Handled directly at the database level and verified during API payload validation.
+
+4. Centralized User-Task RBAC (Role-Based Access Control)
+--------------------------------------------------------------------------------
+- Decision: Separate read/write authorization strictly by 'admin' vs 'member' roles.
+- Rationale: Admins have master control over creation, delegation, and deletion, 
+  while members are strictly limited to updating the state of their assigned work.
+- Impact: Enforced in backend middleware (`rbac.js` and `auth.js`). This ensures that 
+  even if front-end route locks are bypassed, the API rejects unauthorized actions.
+
+5. Unified Sorting Algorithm for Priority and Deadlines
+--------------------------------------------------------------------------------
+- Decision: Multi-tier sorting order applied by default in task listings:
+  Priority (Urgent -> High -> Medium -> Low) -> Due Date (Ascending) -> Created At.
+- Rationale: Rather than forcing the user to toggle filters, the application 
+  pre-emptively bubbles up high-importance and pressing deadlines to the top of 
+  both the admin's and member's task queues.
+- Impact: Handled directly via SQL queries (`ORDER BY CASE WHEN priority = ...`) 
+  in backend controllers.
